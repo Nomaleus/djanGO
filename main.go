@@ -1,9 +1,10 @@
 package main
 
 import (
-	"djanGO/handlers"
 	"fmt"
 	"net/http"
+
+	"djanGO/handlers"
 )
 
 func main() {
