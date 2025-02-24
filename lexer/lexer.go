@@ -4,18 +4,35 @@ import (
 	"djanGO/utils"
 )
 
+type TokenType int
+
+const (
+	TokenEOF TokenType = iota
+	TokenNumber
+	TokenOperator
+	TokenPlus
+	TokenMinus
+	TokenMultiply
+	TokenDivide
+	TokenLeftParen
+	TokenRightParen
+)
+
+type Token struct {
+	Type    TokenType
+	Literal string
+}
+
 type Lexer struct {
 	input        string
 	position     int
 	readPosition int
 	ch           byte
-	TokenEOF     TokenType
 }
 
 func NewLexer(input string) *Lexer {
 	l := &Lexer{
-		input:    input,
-		TokenEOF: TokenEOF,
+		input: input,
 	}
 	l.readChar()
 	return l
@@ -33,44 +50,43 @@ func (l *Lexer) readChar() {
 
 func (l *Lexer) NextToken() Token {
 	l.skipWhitespace()
-	var tok Token
+
+	if l.ch == 0 {
+		return Token{Type: TokenEOF}
+	}
 
 	switch l.ch {
 	case '+':
-		tok = Token{Type: TokenPlus, Value: string(l.ch)}
+		l.readChar()
+		return Token{Type: TokenPlus, Literal: "+"}
 	case '-':
-		tok = Token{Type: TokenMinus, Value: string(l.ch)}
+		l.readChar()
+		return Token{Type: TokenMinus, Literal: "-"}
 	case '*':
-		tok = Token{Type: TokenMultiply, Value: string(l.ch)}
+		l.readChar()
+		return Token{Type: TokenMultiply, Literal: "*"}
 	case '/':
-		tok = Token{Type: TokenDivide, Value: string(l.ch)}
+		l.readChar()
+		return Token{Type: TokenDivide, Literal: "/"}
 	case '(':
-		tok = Token{Type: TokenLeftParen, Value: string(l.ch)}
+		l.readChar()
+		return Token{Type: TokenLeftParen, Literal: "("}
 	case ')':
-		tok = Token{Type: TokenRightParen, Value: string(l.ch)}
-	case 0:
-		tok = Token{Type: TokenEOF, Value: ""}
+		l.readChar()
+		return Token{Type: TokenRightParen, Literal: ")"}
 	default:
-		if utils.IsDigit(l.ch) || l.ch == '.' {
-			tok.Type = TokenNumber
-			tok.Value = l.readNumber()
-			return tok
-		} else {
-			return Token{Type: TokenEOF, Value: ""}
+		if utils.IsDigit(l.ch) {
+			literal := l.readNumber()
+			return Token{Type: TokenNumber, Literal: literal}
 		}
+		l.readChar()
+		return l.NextToken()
 	}
-	l.readChar()
-	return tok
 }
 
 func (l *Lexer) readNumber() string {
 	position := l.position
-	hasDot := false
-
-	for utils.IsDigit(l.ch) || (l.ch == '.' && !hasDot) {
-		if l.ch == '.' {
-			hasDot = true
-		}
+	for utils.IsDigit(l.ch) || l.ch == '.' {
 		l.readChar()
 	}
 	return l.input[position:l.position]
@@ -80,4 +96,34 @@ func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		l.readChar()
 	}
+}
+
+func (l *Lexer) Reset() {
+	l.position = 0
+	l.readPosition = 0
+	l.ch = 0
+	l.readChar()
+}
+
+func (l *Lexer) GetAllTokens() []Token {
+	savedPos := l.position
+	savedReadPos := l.readPosition
+	savedCh := l.ch
+
+	l.Reset()
+
+	var tokens []Token
+	for {
+		token := l.NextToken()
+		tokens = append(tokens, token)
+		if token.Type == TokenEOF {
+			break
+		}
+	}
+
+	l.position = savedPos
+	l.readPosition = savedReadPos
+	l.ch = savedCh
+
+	return tokens
 }

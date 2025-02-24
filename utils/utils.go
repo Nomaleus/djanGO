@@ -1,39 +1,63 @@
 package utils
 
-import "strings"
+import (
+	"encoding/json"
+	"net/http"
+	"os"
+	"regexp"
+	"strconv"
+	"strings"
+)
 
 func IsDigit(ch byte) bool {
 	return '0' <= ch && ch <= '9'
 }
 
-func IsValidExpression(expression string) bool {
-	for i := 0; i < len(expression); i++ {
-		ch := expression[i]
-		if !IsDigit(ch) && !strings.ContainsRune("+-*/().", rune(ch)) {
-			return false
-		}
-	}
+func IsValidExpression(expr string) bool {
+	expr = strings.ReplaceAll(expr, " ", "")
 
-	if strings.Contains(expression, "..") {
+	validChars := regexp.MustCompile(`^[0-9+\-*/().]+$`)
+	if !validChars.MatchString(expr) {
 		return false
 	}
 
-	if strings.Contains(expression, "+*") || strings.Contains(expression, "*/") ||
-		strings.Contains(expression, "*+") || strings.Contains(expression, "/+") {
+	if regexp.MustCompile(`\.{2,}|^\.|\.$|\d*\.\d*\.`).MatchString(expr) {
 		return false
 	}
 
-	openBrackets := 0
-	for _, ch := range expression {
+	if regexp.MustCompile(`^[+\-*/]|[+\-*/]$`).MatchString(expr) {
+		return false
+	}
+
+	if regexp.MustCompile(`[+\-*/][+\-*/]`).MatchString(expr) {
+		return false
+	}
+
+	brackets := 0
+	for _, ch := range expr {
 		if ch == '(' {
-			openBrackets++
+			brackets++
 		} else if ch == ')' {
-			openBrackets--
+			brackets--
+			if brackets < 0 {
+				return false
+			}
 		}
 	}
-	if openBrackets != 0 {
-		return false
-	}
+	return brackets == 0
+}
 
-	return true
+func WriteJSON(w http.ResponseWriter, status int, data interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(data)
+}
+
+func GetEnvInt(key string, defaultValue int) int {
+	if value := os.Getenv(key); value != "" {
+		if intValue, err := strconv.Atoi(value); err == nil {
+			return intValue
+		}
+	}
+	return defaultValue
 }

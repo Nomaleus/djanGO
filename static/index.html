@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FontLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/geometries/TextGeometry.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.7.1/gsap.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body class="bg-gradient-to-br from-indigo-900 to-purple-900 min-h-screen text-white font-mono">
+    <div id="canvas-container"></div>
+
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-5xl font-bold text-center mb-12 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">DJANGOTALE FINAL BOSS</h1>
+
+        <div class="calculator-container glass">
+            <div class="input-display">
+                <input type="text" 
+                       id="expression" 
+                       class="w-full bg-transparent border-0 focus:outline-none text-right text-2xl"
+                       placeholder="Enter expression...">
+            </div>
+
+            <div class="grid grid-cols-4 gap-4">
+                <div class="calculator-key function">C</div>
+                <div class="calculator-key function">(</div>
+                <div class="calculator-key function">)</div>
+                <div class="calculator-key operator">/</div>
+                <div class="calculator-key">7</div>
+                <div class="calculator-key">8</div>
+                <div class="calculator-key">9</div>
+                <div class="calculator-key operator">*</div>
+                <div class="calculator-key">4</div>
+                <div class="calculator-key">5</div>
+                <div class="calculator-key">6</div>
+                <div class="calculator-key operator">-</div>
+                <div class="calculator-key">1</div>
+                <div class="calculator-key">2</div>
+                <div class="calculator-key">3</div>
+                <div class="calculator-key operator">+</div>
+                <div class="calculator-key">0</div>
+                <div class="calculator-key">.</div>
+                <div class="calculator-key col-span-2">=</div>
+            </div>
+
+            <div id="result" class="mt-6 p-4 rounded-lg hidden">
+                <h3 class="text-xl font-semibold mb-2">Result:</h3>
+                <div id="result-value" class="text-3xl font-bold"></div>
+            </div>
+        </div>
+
+        <div class="history-container glass mx-auto flex flex-col items-center">
+            <h2 class="text-2xl font-semibold mb-6">History</h2>
+            <div id="history" class="space-y-4 w-full max-w-md">
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/calculator.js"></script>
+</body>
+</html> 

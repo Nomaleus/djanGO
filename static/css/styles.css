@@ -1,0 +1,119 @@
+#canvas-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: -1;
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.calculator-container {
+    max-width: 400px;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+
+.calculator-key {
+    background: rgba(79, 70, 229, 0.4);
+    border-radius: 12px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.calculator-key:hover {
+    background: rgba(99, 102, 241, 0.6);
+    transform: translateY(-2px);
+}
+
+.calculator-key:active {
+    transform: translateY(1px);
+}
+
+.calculator-key.operator {
+    background: rgba(139, 92, 246, 0.4);
+}
+
+.calculator-key.operator:hover {
+    background: rgba(139, 92, 246, 0.6);
+}
+
+.input-display {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+#result {
+    background: rgba(0, 0, 0, 0.3);
+    color: white;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.history-container {
+    max-width: 400px;
+    margin: 2rem auto 0;
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 1rem 1rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.history-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.history-container::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.history-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.history-item {
+    background: rgba(255, 255, 255, 0.1);
+    margin: 0.5rem 0;
+    padding: 1rem;
+    border-radius: 12px;
+    transition: all 0.2s;
+    width: 90%;
+    box-sizing: border-box;
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.history-item .expression {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.history-item .result {
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.history-item:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.02);
+} 

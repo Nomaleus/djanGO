@@ -27,7 +27,14 @@ func (p *Parser) nextToken() {
 }
 
 func (p *Parser) ParseExpression() (float64, error) {
-	return p.parseExpression()
+	result, err := p.parseExpression()
+	if err != nil {
+		return 0, err
+	}
+	if p.CurToken.Type != lexer.TokenEOF {
+		return 0, fmt.Errorf("unexpected token after expression: %s", p.CurToken.Literal)
+	}
+	return result, nil
 }
 
 func (p *Parser) parseExpression() (float64, error) {
@@ -80,11 +87,11 @@ func (p *Parser) parseTerm() (float64, error) {
 func (p *Parser) parseFactor() (float64, error) {
 	switch p.CurToken.Type {
 	case lexer.TokenNumber:
-		value := p.CurToken.Value
+		value := p.CurToken.Literal
 		p.nextToken()
 		num, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Неправильное число: %s", value)
+			return 0, fmt.Errorf("неправильное число: %s", value)
 		}
 		return num, nil
 	case lexer.TokenLeftParen:
@@ -94,7 +101,7 @@ func (p *Parser) parseFactor() (float64, error) {
 			return 0, err
 		}
 		if p.CurToken.Type != lexer.TokenRightParen {
-			return 0, errors.New("Отсутствует закрывающая скобка")
+			return 0, errors.New("отсутствует закрывающая скобка")
 		}
 		p.nextToken()
 		return expr, nil
@@ -106,6 +113,22 @@ func (p *Parser) parseFactor() (float64, error) {
 		}
 		return -value, nil
 	default:
-		return 0, fmt.Errorf("Неожиданный токен: %s", p.CurToken.Value)
+		return 0, fmt.Errorf("неожиданный токен: %s", p.CurToken.Literal)
 	}
+}
+
+func (p *Parser) GetAllTokens() []lexer.Token {
+	p.lexer.Reset()
+
+	tokens := p.lexer.GetAllTokens()
+
+	if len(tokens) > 0 && tokens[len(tokens)-1].Type == lexer.TokenEOF {
+		tokens = tokens[:len(tokens)-1]
+	}
+
+	p.lexer.Reset()
+	p.nextToken()
+	p.nextToken()
+
+	return tokens
 }
