@@ -6,7 +6,6 @@ import (
 	"djanGO/utils"
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -58,19 +57,6 @@ func (h *Handler) Calculate(w http.ResponseWriter, r *http.Request) {
 	expr.Tasks = tasks
 	h.Storage.AddExpression(expr)
 
-	maxOperationTime := 0
-	for _, task := range tasks {
-		if task.OperationTime > maxOperationTime {
-			maxOperationTime = task.OperationTime
-		}
-	}
-	timeoutDuration := time.Duration(maxOperationTime*len(tasks)) * time.Millisecond
-	timeoutDuration += 5 * time.Second
-	timeout := time.After(timeoutDuration)
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-
 	for _, task := range tasks {
 		go func(t *models.Task) {
 			processor := NewTaskProcessor(t, h.Storage)
@@ -79,33 +65,9 @@ func (h *Handler) Calculate(w http.ResponseWriter, r *http.Request) {
 		}(task)
 	}
 
-	for {
-		select {
-		case <-timeout:
-			utils.WriteJSON(w, http.StatusGatewayTimeout, map[string]string{
-				"error": "Calculation timeout",
-			})
-			return
-		case <-ticker.C:
-			updatedExpr, err := h.Storage.GetExpression(expr.ID)
-			if err != nil {
-				utils.WriteJSON(w, http.StatusInternalServerError, map[string]string{
-					"error": "Failed to get expression",
-				})
-				return
-			}
-			if updatedExpr.Status == "COMPLETED" {
-				utils.WriteJSON(w, http.StatusCreated, models.ExpressionWrapper{
-					Expression: models.ExpressionResponse{
-						ID:     updatedExpr.ID,
-						Status: updatedExpr.Status,
-						Result: updatedExpr.Result,
-					},
-				})
-				return
-			}
-		}
-	}
+	utils.WriteJSON(w, http.StatusCreated, map[string]string{
+		"id": expr.ID,
+	})
 }
 
 func (h *Handler) GetExpressionByID(w http.ResponseWriter, r *http.Request) {

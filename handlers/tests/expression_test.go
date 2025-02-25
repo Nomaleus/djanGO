@@ -71,12 +71,10 @@ func TestCalculate(t *testing.T) {
 					t.Errorf("Expected error message %q, got %q", tt.errorMessage, errMsg)
 				}
 			} else {
-				if expr, ok := response["expression"].(map[string]interface{}); !ok {
-					t.Error("Expected expression in response")
-				} else {
-					if expr["status"] != "COMPLETED" {
-						t.Errorf("Expected status COMPLETED, got %v", expr["status"])
-					}
+				if id, ok := response["id"].(string); !ok {
+					t.Error("Expected id in response")
+				} else if id == "" {
+					t.Error("Expected non-empty id")
 				}
 			}
 		})

@@ -30,6 +30,7 @@ class Calculator3D {
         this.backgroundPixels = this.createBackgroundPattern();
         this.startStarSpawning();
         this.createInfinityImage();
+        this.createInfinityImage();
         this.animate();
     }
 
@@ -612,16 +613,53 @@ async function calculateExpression() {
             return;
         }
         
-        const result = data.expression?.result;
-        if (result === undefined) {
-            throw new Error('Invalid response format');
+        const id = data.id;
+        if (!id) {
+            throw new Error('Некорректный формат ответа: отсутствует ID');
         }
 
-        updateResult(result);
-        addToHistory(expression, result);
+        const pollResult = async () => {
+            try {
+                const resultResponse = await fetch(`/api/v1/expressions/${id}`);
+                const resultData = await resultResponse.json();
+                
+                if (resultData.error) {
+                    showError(resultData.error);
+                    return false;
+                }
+                
+                const expr = resultData.expression;
+                if (expr.status === "COMPLETED") {
+                    updateResult(expr.result);
+                    addToHistory(expression, expr.result);
+                    return true;
+                }
+                
+                return false;
+            } catch (err) {
+                showError(err.message);
+                return false;
+            }
+        };
+
+        const maxAttempts = 30;
+        let attempts = 0;
+        
+        const pollInterval = setInterval(async () => {
+            attempts++;
+            const isComplete = await pollResult();
+            
+            if (isComplete || attempts >= maxAttempts) {
+                clearInterval(pollInterval);
+                calculator3D.stopLoadingAnimation();
+                
+                if (attempts >= maxAttempts && !isComplete) {
+                    showError("Таймаут вычисления");
+                }
+            }
+        }, 200);
     } catch (error) {
         showError(error.message);
-    } finally {
         calculator3D.stopLoadingAnimation();
     }
 }
