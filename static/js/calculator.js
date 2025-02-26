@@ -30,7 +30,6 @@ class Calculator3D {
         this.backgroundPixels = this.createBackgroundPattern();
         this.startStarSpawning();
         this.createInfinityImage();
-        this.createInfinityImage();
         this.animate();
     }
 
