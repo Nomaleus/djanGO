@@ -55,6 +55,33 @@ func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, er
 	}
 
 	cleanExpr := strings.ReplaceAll(expr.Original, " ", "")
+
+	tempExpr := cleanExpr
+	for strings.HasPrefix(tempExpr, "(") && strings.HasSuffix(tempExpr, ")") {
+		tempExpr = tempExpr[1 : len(tempExpr)-1]
+	}
+
+	if _, err := strconv.ParseFloat(tempExpr, 64); err == nil && utils.IsValidExpression(expr.Original) {
+		num, _ := strconv.ParseFloat(tempExpr, 64)
+		if err == nil {
+			task := &models.Task{
+				ID:        uuid.New().String(),
+				Operation: "value",
+				Arg1:      num,
+				Status:    "COMPLETED",
+				Result:    num,
+			}
+
+			p.storage.AddTask(task)
+
+			expr.Status = "COMPLETED"
+			expr.Result = num
+			expr.Tasks = []*models.Task{task}
+
+			return []*models.Task{task}, nil
+		}
+	}
+
 	newLexer := lexer.NewLexer(cleanExpr)
 	newParser := parser.NewParser(newLexer)
 
@@ -74,6 +101,11 @@ func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, er
 		}
 
 		p.storage.AddTask(task)
+
+		expr.Status = "COMPLETED"
+		expr.Result = num
+		expr.Tasks = []*models.Task{task}
+
 		return []*models.Task{task}, nil
 	}
 

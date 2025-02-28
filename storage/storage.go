@@ -119,11 +119,11 @@ func (s *Storage) UpdateTaskResult(taskID string, result float64) error {
 }
 
 func (s *Storage) AddTask(task *models.Task) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, exists := s.tasks[task.ID]; exists {
 		return ErrTaskExists
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.tasks[task.ID] = task
 	return nil
 }

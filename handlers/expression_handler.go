@@ -45,6 +45,8 @@ func (h *Handler) Calculate(w http.ResponseWriter, r *http.Request) {
 		Status:   "PENDING",
 	}
 
+	h.Storage.AddExpression(expr)
+
 	processor := NewTaskProcessor(nil, h.Storage)
 	tasks, err := processor.CreateTasks(expr)
 	if err != nil {
@@ -55,14 +57,15 @@ func (h *Handler) Calculate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expr.Tasks = tasks
-	h.Storage.AddExpression(expr)
 
 	for _, task := range tasks {
-		go func(t *models.Task) {
-			processor := NewTaskProcessor(t, h.Storage)
-			result := processor.Process()
-			h.Storage.UpdateTaskResult(t.ID, result)
-		}(task)
+		if task.Status != "COMPLETED" {
+			go func(t *models.Task) {
+				processor := NewTaskProcessor(t, h.Storage)
+				result := processor.Process()
+				h.Storage.UpdateTaskResult(t.ID, result)
+			}(task)
+		}
 	}
 
 	utils.WriteJSON(w, http.StatusCreated, map[string]string{

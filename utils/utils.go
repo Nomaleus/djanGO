@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -14,37 +13,55 @@ func IsDigit(ch byte) bool {
 }
 
 func IsValidExpression(expr string) bool {
-	expr = strings.ReplaceAll(expr, " ", "")
-
-	validChars := regexp.MustCompile(`^[0-9+\-*/().]+$`)
-	if !validChars.MatchString(expr) {
+	if expr == "" {
 		return false
 	}
 
-	if regexp.MustCompile(`\.{2,}|^\.|\.$|\d*\.\d*\.`).MatchString(expr) {
-		return false
+	cleanExpr := strings.ReplaceAll(expr, " ", "")
+
+	if len(cleanExpr) > 0 {
+		if strings.ContainsRune("+-*/", rune(cleanExpr[0])) || strings.ContainsRune("+-*/", rune(cleanExpr[len(cleanExpr)-1])) {
+			return false
+		}
 	}
 
-	if regexp.MustCompile(`^[+\-*/]|[+\-*/]$`).MatchString(expr) {
-		return false
+	for i := 0; i < len(expr)-1; i++ {
+		if (expr[i] >= '0' && expr[i] <= '9') && expr[i+1] == '(' {
+			return false
+		}
+		if expr[i] == ')' && (expr[i+1] >= '0' && expr[i+1] <= '9') {
+			return false
+		}
 	}
 
-	if regexp.MustCompile(`[+\-*/][+\-*/]`).MatchString(expr) {
-		return false
+	for _, c := range expr {
+		if !strings.ContainsRune("0123456789+-*/() .", c) {
+			return false
+		}
 	}
 
-	brackets := 0
-	for _, ch := range expr {
-		if ch == '(' {
-			brackets++
-		} else if ch == ')' {
-			brackets--
-			if brackets < 0 {
+	count := 0
+	for _, c := range expr {
+		if c == '(' {
+			count++
+		} else if c == ')' {
+			count--
+			if count < 0 {
 				return false
 			}
 		}
 	}
-	return brackets == 0
+	if count != 0 {
+		return false
+	}
+
+	for i := 0; i < len(cleanExpr)-1; i++ {
+		if strings.ContainsRune("+-*/", rune(cleanExpr[i])) && strings.ContainsRune("+-*/", rune(cleanExpr[i+1])) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func WriteJSON(w http.ResponseWriter, status int, data interface{}) {
