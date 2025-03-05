@@ -10,6 +10,8 @@
 
 ![Architecture](Scheme.png)
 
+---
+
 ## 📥 Установка
 1. Установите [Go](https://go.dev/doc/install):
 
