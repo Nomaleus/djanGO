@@ -12,7 +12,8 @@ import (
 
 func TestTaskEndpoints(t *testing.T) {
 	store := storage.NewStorage()
-	handler := handlers.NewHandler(store)
+	storeWrapper := storage.NewStorageWrapper(store)
+	handler := handlers.NewHandler(storeWrapper)
 
 	t.Run("Submit task", func(t *testing.T) {
 		taskReq := map[string]interface{}{

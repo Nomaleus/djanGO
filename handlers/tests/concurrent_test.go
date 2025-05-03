@@ -11,6 +11,7 @@ import (
 
 func TestConcurrentTaskProcessing(t *testing.T) {
 	store := storage.NewStorage()
+	storeWrapper := storage.NewStorageWrapper(store)
 
 	tasks := []*models.Task{
 		{
@@ -37,7 +38,7 @@ func TestConcurrentTaskProcessing(t *testing.T) {
 	}
 
 	for _, task := range tasks {
-		store.AddTask(task)
+		storeWrapper.AddTask(task)
 	}
 
 	var wg sync.WaitGroup
@@ -48,7 +49,7 @@ func TestConcurrentTaskProcessing(t *testing.T) {
 		wg.Add(1)
 		go func(t *models.Task) {
 			defer wg.Done()
-			processor := handlers.NewTaskProcessor(t, store)
+			processor := handlers.NewTaskProcessor(t, storeWrapper)
 			result := processor.Process()
 			mu.Lock()
 			results[t.ID] = result
@@ -85,6 +86,7 @@ func TestConcurrentTaskProcessing(t *testing.T) {
 
 func TestConcurrentExpressionProcessing(t *testing.T) {
 	store := storage.NewStorage()
+	storeWrapper := storage.NewStorageWrapper(store)
 
 	expressions := []string{
 		"2+3*4",
@@ -103,7 +105,8 @@ func TestConcurrentExpressionProcessing(t *testing.T) {
 				Status:   "PENDING",
 			}
 
-			processor := handlers.NewTaskProcessor(nil, store)
+			storeWrapper.AddExpression(expr)
+			processor := handlers.NewTaskProcessor(nil, storeWrapper)
 			tasks, err := processor.CreateTasks(expr)
 			if err != nil {
 				t.Errorf("Failed to create tasks for expression %s: %v", expression, err)
@@ -115,9 +118,9 @@ func TestConcurrentExpressionProcessing(t *testing.T) {
 				taskWg.Add(1)
 				go func(t *models.Task) {
 					defer taskWg.Done()
-					taskProcessor := handlers.NewTaskProcessor(t, store)
+					taskProcessor := handlers.NewTaskProcessor(t, storeWrapper)
 					result := taskProcessor.Process()
-					store.UpdateTaskResult(t.ID, result)
+					storeWrapper.UpdateTaskResult(t.ID, result)
 				}(task)
 			}
 			taskWg.Wait()
@@ -132,7 +135,7 @@ func TestConcurrentExpressionProcessing(t *testing.T) {
 
 	select {
 	case <-done:
-		tasks := store.GetAllTasks()
+		tasks := storeWrapper.GetAllTasks()
 		if len(tasks) == 0 {
 			t.Error("No tasks were created")
 		}

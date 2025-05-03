@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package calculatorservice;
+
+option go_package = "djanGO/proto/gen";
+
+service TaskService {
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse) {}
+
+  rpc GetAndLockPendingTask(GetAndLockPendingTaskRequest) returns (GetAndLockPendingTaskResponse) {}
+
+  rpc SubmitTaskResult(SubmitTaskResultRequest) returns (SubmitTaskResultResponse) {}
+}
+
+message GetTaskRequest {
+}
+
+message GetTaskResponse {
+  repeated Task tasks = 1;
+}
+
+message GetAndLockPendingTaskRequest {
+  int32 worker_id = 1;
+}
+
+message GetAndLockPendingTaskResponse {
+  Task task = 1;
+
+  bool task_found = 2;
+}
+
+message Task {
+  string id = 1;
+  double arg1 = 2;
+  double arg2 = 3;
+  string operation = 4;
+  int32 operation_time = 5;
+  string status = 6;
+  double result = 7;
+  string error = 8;
+}
+
+message SubmitTaskResultRequest {
+  oneof request {
+    Task task = 1;
+
+    TaskResult result = 2;
+  }
+}
+
+message TaskResult {
+  string id = 1;
+  double result = 2;
+}
+
+message SubmitTaskResultResponse {
+  string id = 1;
+  double result = 2;
+} 

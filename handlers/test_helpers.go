@@ -31,5 +31,6 @@ func (h *Handler) CreateTestExpression() *models.Expression {
 }
 
 func (h *Handler) CleanupTestData() {
-	h.Storage = storage.NewStorage()
+	store := storage.NewStorage()
+	h.Storage = storage.NewStorageWrapper(store)
 }

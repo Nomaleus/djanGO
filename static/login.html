@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход - Калькулятор</title>
+    <script src="static/js/libs/tailwind.js"></script>
+    <link href="static/css/fonts.css" rel="stylesheet">
+    <link href="static/css/styles.css" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-indigo-900 to-purple-900 min-h-screen text-white font-mono flex items-center justify-center">
+    <div class="container mx-auto px-4 py-8 max-w-md">
+        <h1 class="text-4xl font-bold text-center mb-8 drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,0.8)]">ВХОД</h1>
+
+        <div class="login-container glass p-8 rounded-xl">
+            <div id="error-message" class="bg-red-500 text-white p-3 rounded-md mb-6 hidden"></div>
+            <div id="success-message" class="bg-green-500 text-white p-3 rounded-md mb-6 hidden"></div>
+            
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="login" class="block text-sm font-medium text-gray-100 mb-1">Логин</label>
+                    <input type="text" id="login" name="login" 
+                           class="w-full px-4 py-2 rounded-md bg-opacity-20 bg-white border border-purple-300 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                           required>
+                </div>
+                
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-100 mb-1">Пароль</label>
+                    <input type="password" id="password" name="password" 
+                           class="w-full px-4 py-2 rounded-md bg-opacity-20 bg-white border border-purple-300 text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                           required>
+                </div>
+                
+                <div>
+                    <button type="submit" 
+                            class="w-full py-2 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors">
+                        Войти
+                    </button>
+                </div>
+            </form>
+            
+            <div class="mt-6 text-center">
+                <p>Нет аккаунта? <a href="/register" class="text-purple-300 hover:text-purple-100 underline">Зарегистрироваться</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/auth.js"></script>
+</body>
+</html> 

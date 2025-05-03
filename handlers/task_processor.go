@@ -17,10 +17,10 @@ import (
 
 type TaskProcessor struct {
 	task    *models.Task
-	storage *storage.Storage
+	storage *storage.StorageWrapper
 }
 
-func NewTaskProcessor(task *models.Task, storage *storage.Storage) *TaskProcessor {
+func NewTaskProcessor(task *models.Task, storage *storage.StorageWrapper) *TaskProcessor {
 	return &TaskProcessor{
 		task:    task,
 		storage: storage,
@@ -29,10 +29,29 @@ func NewTaskProcessor(task *models.Task, storage *storage.Storage) *TaskProcesso
 
 func (p *TaskProcessor) Process() float64 {
 	time.Sleep(time.Duration(p.task.OperationTime) * time.Millisecond)
-	return p.calculateResult()
+	result, err := p.calculateResult()
+	if err != nil {
+		p.task.Status = "ERROR"
+		p.task.Error = err.Error()
+		p.storage.UpdateTaskError(p.task.ID, err.Error())
+
+		expressions, _ := p.storage.GetAllExpressions()
+		for _, expr := range expressions {
+			for _, t := range expr.Tasks {
+				if t.ID == p.task.ID {
+					expr.Status = "ERROR"
+					p.storage.UpdateExpression(expr)
+					break
+				}
+			}
+		}
+
+		return 0
+	}
+	return result
 }
 
-func (p *TaskProcessor) calculateResult() float64 {
+func (p *TaskProcessor) calculateResult() (float64, error) {
 	var result float64
 	switch p.task.Operation {
 	case "+":
@@ -42,11 +61,12 @@ func (p *TaskProcessor) calculateResult() float64 {
 	case "*":
 		result = p.task.Arg1 * p.task.Arg2
 	case "/":
-		if p.task.Arg2 != 0 {
-			result = p.task.Arg1 / p.task.Arg2
+		if p.task.Arg2 == 0 {
+			return 0, fmt.Errorf("division by zero")
 		}
+		result = p.task.Arg1 / p.task.Arg2
 	}
-	return result
+	return result, nil
 }
 
 func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, error) {
@@ -65,11 +85,13 @@ func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, er
 		num, _ := strconv.ParseFloat(tempExpr, 64)
 		if err == nil {
 			task := &models.Task{
-				ID:        uuid.New().String(),
-				Operation: "value",
-				Arg1:      num,
-				Status:    "COMPLETED",
-				Result:    num,
+				ID:           uuid.New().String(),
+				ExpressionID: expr.ID,
+				Order:        0,
+				Operation:    "value",
+				Arg1:         num,
+				Status:       "COMPLETED",
+				Result:       num,
 			}
 
 			p.storage.AddTask(task)
@@ -93,11 +115,13 @@ func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, er
 	if len(tokens) == 1 && tokens[0].Type == lexer.TokenNumber {
 		num, _ := strconv.ParseFloat(tokens[0].Literal, 64)
 		task := &models.Task{
-			ID:        uuid.New().String(),
-			Operation: "value",
-			Arg1:      num,
-			Status:    "COMPLETED",
-			Result:    num,
+			ID:           uuid.New().String(),
+			ExpressionID: expr.ID,
+			Order:        0,
+			Operation:    "value",
+			Arg1:         num,
+			Status:       "COMPLETED",
+			Result:       num,
 		}
 
 		p.storage.AddTask(task)
@@ -116,19 +140,44 @@ func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, er
 
 	var tasks []*models.Task
 	var numStack []float64
+	var taskStack []*models.Task
+
+	taskOrder := 0
 
 	for _, token := range output {
 		switch token.Type {
 		case lexer.TokenNumber:
 			num, _ := strconv.ParseFloat(token.Literal, 64)
+
+			valueTask := &models.Task{
+				ID:           uuid.New().String(),
+				ExpressionID: expr.ID,
+				Order:        taskOrder,
+				Operation:    "value",
+				Arg1:         num,
+				Status:       "COMPLETED",
+				Result:       num,
+			}
+			taskOrder++
+
+			p.storage.AddTask(valueTask)
+			tasks = append(tasks, valueTask)
+
 			numStack = append(numStack, num)
+			taskStack = append(taskStack, valueTask)
+
 		case lexer.TokenPlus, lexer.TokenMinus, lexer.TokenMultiply, lexer.TokenDivide:
 			if len(numStack) < 2 {
 				return nil, fmt.Errorf("mismatched numbers and operations")
 			}
+
 			b := numStack[len(numStack)-1]
 			a := numStack[len(numStack)-2]
 			numStack = numStack[:len(numStack)-2]
+
+			taskB := taskStack[len(taskStack)-1]
+			taskA := taskStack[len(taskStack)-2]
+			taskStack = taskStack[:len(taskStack)-2]
 
 			op := "+"
 			switch token.Type {
@@ -144,33 +193,57 @@ func (p *TaskProcessor) CreateTasks(expr *models.Expression) ([]*models.Task, er
 
 			task := &models.Task{
 				ID:            uuid.New().String(),
+				ExpressionID:  expr.ID,
+				Order:         taskOrder,
 				Operation:     op,
 				Arg1:          a,
 				Arg2:          b,
 				Status:        "PENDING",
 				OperationTime: utils.GetOperationTime(op),
+				DependsOn:     []string{taskA.ID, taskB.ID},
+				Arg1Source:    taskA.ID,
+				Arg2Source:    taskB.ID,
 			}
+			taskOrder++
+
 			tasks = append(tasks, task)
 			p.storage.AddTask(task)
 
-			result := 0.0
+			if op == "/" && b == 0 {
+				task.Status = "ERROR"
+				task.Error = "division by zero"
+				p.storage.UpdateTaskError(task.ID, "division by zero")
+				expr.Status = "ERROR"
+				expr.Error = "division by zero"
+				return tasks, nil
+			}
+
+			taskStack = append(taskStack, task)
+
+			calculatedResult := 0.0
 			switch op {
 			case "+":
-				result = a + b
+				calculatedResult = a + b
 			case "-":
-				result = a - b
+				calculatedResult = a - b
 			case "*":
-				result = a * b
+				calculatedResult = a * b
 			case "/":
 				if b != 0 {
-					result = a / b
+					calculatedResult = a / b
 				}
 			}
-			numStack = append(numStack, result)
+
+			numStack = append(numStack, calculatedResult)
 		}
 	}
 
-	return tasks, nil
+	if len(taskStack) == 1 {
+		expr.Tasks = tasks
+		return tasks, nil
+	}
+
+	return nil, fmt.Errorf("invalid expression")
 }
 
 func (p *TaskProcessor) convertToPostfix(tokens []lexer.Token) ([]lexer.Token, error) {
@@ -223,6 +296,14 @@ func (p *TaskProcessor) convertToPostfix(tokens []lexer.Token) ([]lexer.Token, e
 	}
 
 	return output, nil
+}
+
+func formatTokens(tokens []lexer.Token) string {
+	var result []string
+	for _, t := range tokens {
+		result = append(result, t.Literal)
+	}
+	return strings.Join(result, " ")
 }
 
 func ProcessExpression(expression string) (*models.Expression, error) {

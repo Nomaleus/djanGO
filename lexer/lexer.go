@@ -9,7 +9,6 @@ type TokenType int
 const (
 	TokenEOF TokenType = iota
 	TokenNumber
-	TokenOperator
 	TokenPlus
 	TokenMinus
 	TokenMultiply

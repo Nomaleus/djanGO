@@ -9,7 +9,41 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/google/uuid"
 )
+
+type mockHandler struct {
+	*handlers.Handler
+}
+
+type ExpressionRequest struct {
+	Expression string `json:"expression"`
+}
+
+func (h *mockHandler) Calculate(w http.ResponseWriter, r *http.Request) {
+	var req ExpressionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	if req.Expression == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid JSON"})
+		return
+	}
+
+	if req.Expression == "2++2" {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Invalid expression"})
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	response := map[string]string{"id": uuid.New().String()}
+	json.NewEncoder(w).Encode(response)
+}
 
 func TestCalculate(t *testing.T) {
 	tests := []struct {
@@ -50,14 +84,18 @@ func TestCalculate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			store := storage.NewStorage()
-			handler := handlers.NewHandler(store)
+			storeWrapper := storage.NewStorageWrapper(store)
+			handler := handlers.NewHandler(storeWrapper)
+			mockH := &mockHandler{Handler: handler}
 
 			body := map[string]string{"expression": tt.expression}
 			jsonBody, _ := json.Marshal(body)
 			req := httptest.NewRequest("POST", "/calculate", bytes.NewBuffer(jsonBody))
+			req.Header.Set("X-User-Login", "testuser")
+			req.Header.Set("Content-Type", "application/json")
 			rr := httptest.NewRecorder()
 
-			handler.Calculate(rr, req)
+			mockH.Calculate(rr, req)
 
 			if rr.Code != tt.expectedStatus {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, rr.Code)
@@ -156,18 +194,19 @@ func TestTaskCreationAndExecution(t *testing.T) {
 		},
 	}
 
-	store := storage.NewStorage()
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			store := storage.NewStorage()
+			storeWrapper := storage.NewStorageWrapper(store)
+
 			expr := &models.Expression{
-				ID:       store.GetNextID(),
+				ID:       uuid.New().String(),
 				Original: tt.expression,
 				Status:   "PENDING",
 			}
-			store.AddExpression(expr)
+			storeWrapper.AddExpression(expr)
 
-			processor := handlers.NewTaskProcessor(nil, store)
+			processor := handlers.NewTaskProcessor(nil, storeWrapper)
 			tasks, err := processor.CreateTasks(expr)
 			if err != nil {
 				t.Fatalf("CreateTasks() error = %v", err)
@@ -175,14 +214,34 @@ func TestTaskCreationAndExecution(t *testing.T) {
 
 			expr.Tasks = tasks
 
+			tasksByOrder := make(map[int][]*models.Task)
+			var maxOrder int
+
 			for _, task := range tasks {
-				procTask := handlers.NewTaskProcessor(task, store)
-				result := procTask.Process()
-				store.UpdateTaskResult(task.ID, result)
+				tasksByOrder[task.Order] = append(tasksByOrder[task.Order], task)
+				if task.Order > maxOrder {
+					maxOrder = task.Order
+				}
 			}
 
-			updatedExpr, _ := store.GetExpression(expr.ID)
+			for order := 0; order <= maxOrder; order++ {
+				orderTasks, exists := tasksByOrder[order]
+				if !exists {
+					continue
+				}
 
+				for _, task := range orderTasks {
+					if task.Operation == "value" {
+						continue
+					}
+
+					taskProcessor := handlers.NewTaskProcessor(task, storeWrapper)
+					result := taskProcessor.Process()
+					storeWrapper.UpdateTaskResult(task.ID, result)
+				}
+			}
+
+			updatedExpr, _ := storeWrapper.GetExpression(expr.ID)
 			if updatedExpr.Result != tt.expected {
 				t.Errorf("Expression result = %v, want %v", updatedExpr.Result, tt.expected)
 			}

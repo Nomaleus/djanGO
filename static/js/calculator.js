@@ -1,3 +1,12 @@
+(function() {
+    window.getCookieValue = function(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return null;
+    };
+})();
+
 class Calculator3D {
     constructor() {
         this.scene = new THREE.Scene();
@@ -551,46 +560,86 @@ class Calculator3D {
     }
 }
 
-const calculator3D = new Calculator3D();
+let calculator3D;
 
-document.querySelectorAll('.calculator-key').forEach(key => {
-    key.addEventListener('click', () => {
-        const value = key.textContent;
-        const input = document.getElementById('expression');
-        
-        if (value === 'C') {
-            input.value = '';
-            calculator3D.addSpecialEffect('clear');
-        } else if (value === '=') {
-            calculateExpression();
-            calculator3D.addSpecialEffect('equals');
-        } else {
-            input.value += value;
-            if (!isNaN(value)) {
-                calculator3D.addFloatingNumber(value);
-            } else if (value === '.') {
-                calculator3D.addSpecialEffect('dot');
-            } else if (value === '(' || value === ')') {
-                calculator3D.addSpecialEffect('parenthesis');
-            } else if (['+', '-', '*', '/'].includes(value)) {
-                calculator3D.addFloatingOperator(value);
-            }
-        }
-        
-        gsap.to(key, {
-            scale: 0.95,
-            duration: 0.1,
-            yoyo: true,
-            repeat: 1
-        });
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("Инициализация калькулятора...");
+
+    const userLogin = window.getCookieValue('user_login');
+    if (!userLogin) {
+        console.log("Пользователь не авторизован, перенаправление на страницу входа");
+        window.location.href = '/login';
+        return;
+    }
+    
+    console.log("✅ Пользователь авторизован как:", userLogin);
+    window.currentUser = userLogin;
+    
+    calculator3D = new Calculator3D();
+
+    createPixelWalls();
+
+    document.querySelectorAll('.calculator-key').forEach(key => {
+        key.addEventListener('click', handleCalculatorKey);
     });
-});
 
-document.getElementById('expression').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        calculateExpression();
+    document.getElementById('expression').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            calculateExpression();
+        }
+    });
+
+    if (typeof loadExpressionHistory === 'function') {
+        console.log("Запуск загрузки истории вычислений...");
+        loadExpressionHistory();
     }
 });
+
+function handleCalculatorKey(event) {
+    const key = event.target.textContent;
+    const input = document.getElementById('expression');
+
+    const keyElement = event.target;
+    keyElement.classList.add('calculator-key-active');
+    setTimeout(() => keyElement.classList.remove('calculator-key-active'), 150);
+    
+    switch(key) {
+        case 'C':
+            input.value = '';
+            break;
+        case '=':
+            calculateExpression();
+            break;
+        default:
+            input.value += key;
+
+            if (['+', '-', '*', '/'].includes(key)) {
+                calculator3D.addFloatingOperator(key);
+            } else if (!isNaN(key) || key === '.') {
+                calculator3D.addFloatingNumber(key);
+            }
+    }
+}
+
+function getAuthHeaders() {
+    const headers = {'Content-Type': 'application/json'};
+
+    const jwtToken = localStorage.getItem('jwt_token');
+    if (jwtToken) {
+        headers['Authorization'] = `Bearer ${jwtToken}`;
+        console.log("Добавлен заголовок Authorization с JWT токеном");
+    }
+
+    const userLogin = window.getCookieValue('user_login');
+    if (userLogin) {
+        headers['X-User-Login'] = userLogin;
+        window.currentUser = userLogin;
+    } else if (window.currentUser) {
+        headers['X-User-Login'] = window.currentUser;
+    }
+    
+    return headers;
+}
 
 async function calculateExpression() {
     const input = document.getElementById('expression');
@@ -598,85 +647,83 @@ async function calculateExpression() {
 
     if (!expression.trim()) return;
 
-    calculator3D.startLoadingAnimation();
+    const userLogin = window.getCookieValue('user_login');
+    if (!userLogin) {
+        console.log("Пользователь не авторизован");
+        showError("Пожалуйста, войдите в систему для выполнения вычислений");
+        setTimeout(() => {
+            window.location.href = '/login';
+        }, 2000);
+        return;
+    }
+
+    showLoading();
     try {
+        console.log("Отправка запроса с выражением:", expression);
+        const headers = getAuthHeaders();
+        console.log("Заголовки для запроса:", headers);
+
         const response = await fetch('/api/v1/calculate', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ expression })
+            headers: headers,
+            body: JSON.stringify({ expression }),
+            credentials: 'include'
         });
+
+        console.log("Статус ответа от сервера:", response.status);
+
+        const responseText = await response.text();
+        console.log("Ответ сервера (текст):", responseText);
+
+        let data;
+        try {
+            data = JSON.parse(responseText);
+            console.log("Распарсенный ответ:", data);
+        } catch (e) {
+            console.error("Не удалось распарсить ответ как JSON:", e);
+            throw new Error("Ошибка в формате ответа от сервера");
+        }
         
-        const data = await response.json();
-        if (data.error) {
-            showError(data.error);
+        if (!response.ok) {
+            if (response.status === 401) {
+                console.error("Ошибка авторизации");
+                showError("Ошибка авторизации. Перенаправление на страницу входа...");
+                setTimeout(() => {
+                    document.cookie = 'user_login=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                    document.cookie = 'session_id=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+                    window.currentUser = null;
+                    window.location.href = '/login?t=' + Date.now();
+                }, 2000);
+                return;
+            }
+            
+            if (data && data.error) {
+                showError(data.error);
+            } else {
+                showError("Ошибка на сервере: " + response.status);
+            }
+            hideLoading();
             return;
         }
         
-        const id = data.id;
-        if (!id) {
-            throw new Error('Некорректный формат ответа: отсутствует ID');
+        if (data.error) {
+            showError(data.error);
+            hideLoading();
+            return;
         }
 
-        const pollResult = async () => {
-            try {
-                const resultResponse = await fetch(`/api/v1/expressions/${id}`);
-                const resultData = await resultResponse.json();
-                
-                if (resultData.error) {
-                    showError(resultData.error);
-                    return false;
-                }
-                
-                const expr = resultData.expression;
-                if (expr.status === "COMPLETED") {
-                    updateResult(expr.result);
-                    addToHistory(expression, expr.result);
-                    return true;
-                }
-                
-                return false;
-            } catch (err) {
-                showError(err.message);
-                return false;
-            }
-        };
-
-        const maxAttempts = 30;
-        let attempts = 0;
-        
-        const pollInterval = setInterval(async () => {
-            attempts++;
-            const isComplete = await pollResult();
-            
-            if (isComplete || attempts >= maxAttempts) {
-                clearInterval(pollInterval);
-                calculator3D.stopLoadingAnimation();
-                
-                if (attempts >= maxAttempts && !isComplete) {
-                    showError("Таймаут вычисления");
-                }
-            }
-        }, 200);
+        if (data.id) {
+            console.log("Получен ID выражения:", data.id);
+            pollForResult(data.id);
+        } else {
+            throw new Error('Некорректный формат ответа: отсутствует ID');
+        }
     } catch (error) {
+        console.error("Ошибка при вычислении:", error);
         showError(error.message);
-        calculator3D.stopLoadingAnimation();
+        hideLoading();
     }
 }
-
-function updateResult(result) {
-    const resultDiv = document.getElementById('result');
-    resultDiv.classList.remove('hidden');
-    resultDiv.style.background = 'rgba(0, 0, 0, 0.3)';
-    
-    gsap.to(resultDiv, {
-        opacity: 1,
-        y: 20,
-        duration: 0.5
-    });
-    
-    document.getElementById('result-value').textContent = result;
-}
-
 function addToHistory(expression, result) {
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item opacity-0 w-full mx-auto text-center';
@@ -685,12 +732,24 @@ function addToHistory(expression, result) {
         <div class="text-xl font-bold text-white">${result}</div>
     `;
     
-    document.getElementById('history').prepend(historyItem);
+    const historyElement = document.getElementById('history');
+    if (!historyElement) return;
+
+    if (historyElement.style.flexDirection !== 'column-reverse') {
+        historyElement.style.display = 'flex';
+        historyElement.style.flexDirection = 'column-reverse';
+        historyElement.style.overflowY = 'auto';
+    }
+
+    historyElement.append(historyItem);
+    
     gsap.to(historyItem, {
         opacity: 1,
         y: 20,
         duration: 0.5
     });
+
+    historyElement.scrollTop = 0;
 }
 
 function showError(message) {
@@ -834,4 +893,129 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }, 3000);
-}); 
+});
+function showLoading() {
+    calculator3D.startLoadingAnimation();
+}
+
+function hideLoading() {
+    calculator3D.stopLoadingAnimation();
+}
+
+async function pollForResult(id) {
+    console.log("Polling for result for expression ID:", id);
+    
+    try {
+        const timestamp = new Date().getTime();
+        const response = await fetch(`/api/v1/expressions/${id}?_t=${timestamp}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-User-Login': window.getCookieValue('user_login') || window.currentUser
+            },
+            credentials: 'include'
+        });
+        
+        console.log("Статус ответа при запросе выражения:", response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Ошибка при получении выражения:", errorText);
+            document.getElementById('error').innerHTML = `Ошибка: ${response.status} - ${errorText}`;
+            hideLoading();
+            return;
+        }
+        
+        const data = await response.json();
+        console.log("Получены данные выражения:", data);
+        
+        let expressionData;
+        if (data.expression) {
+            expressionData = data.expression;
+            console.log("Данные выражения извлечены из поля 'expression':", expressionData);
+        } else {
+            expressionData = data;
+            console.log("Данные выражения непосредственно в ответе:", expressionData);
+        }
+        
+        if (expressionData.status === "PENDING" || expressionData.status === "PROCESSING") {
+            console.log("Expression is still processing, will poll again in 500ms");
+            setTimeout(() => pollForResult(id), 500);
+        } else if (expressionData.status === "COMPLETED") {
+            console.log("Expression is completed with result:", expressionData.result);
+            hideLoading();
+            
+            let expressionText = '';
+            if (expressionData.text) {
+                expressionText = expressionData.text;
+            } else if (expressionData.original) {
+                expressionText = expressionData.original;  
+            } else {
+                const expressionInput = document.getElementById('expression');
+                if (expressionInput) {
+                    expressionText = expressionInput.value;
+                }
+            }
+            
+            console.log("Текст выражения для отображения:", expressionText);
+            
+            showResult(expressionData.result, expressionText);
+            
+            console.log("Updating history after calculation completed");
+            if (typeof loadExpressionHistory === 'function') {
+                loadExpressionHistory();
+            }
+        } else if (expressionData.status === "ERROR") {
+            hideLoading();
+            console.log("Expression evaluation error:", expressionData.error);
+            
+            const resultElement = document.getElementById('result');
+            if (resultElement) {
+                resultElement.classList.remove('hidden');
+                resultElement.innerHTML = `<div class="text-red-500">Ошибка: ${expressionData.error || 'Неизвестная ошибка'}</div>`;
+            }
+            
+            if (typeof loadExpressionHistory === 'function') {
+                loadExpressionHistory();
+            }
+        }
+    } catch (error) {
+        hideLoading();
+        console.error('Error polling for result:', error);
+        
+        const errorElement = document.getElementById('error');
+        if (errorElement) {
+            errorElement.innerHTML = `Ошибка: ${error.message}`;
+        }
+        
+        setTimeout(() => pollForResult(id), 1000);
+    }
+}
+
+function showResult(result, expression) {
+    console.log(`Отображение результата: ${result} для выражения: ${expression}`);
+    hideLoading();
+    
+    const resultElement = document.getElementById('result');
+    if (resultElement) {
+        resultElement.classList.remove('hidden');
+        resultElement.innerHTML = `<h3 class="text-xl font-semibold mb-2">Результат:</h3>
+                                   <div id="result-value" class="text-3xl font-bold">${result}</div>`;
+        
+        gsap.to(resultElement, {
+            opacity: 1,
+            y: 20,
+            duration: 0.5
+        });
+    }
+    
+    if (typeof loadExpressionHistory !== 'function') {
+        addToHistory(expression, result);
+    }
+    
+    if (calculator3D) {
+        calculator3D.addFloatingNumber(result);
+    }
+    
+    console.log("Результат отображен в интерфейсе:", result);
+}

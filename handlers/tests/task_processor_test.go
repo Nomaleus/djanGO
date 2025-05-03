@@ -52,10 +52,11 @@ func TestTaskProcessor(t *testing.T) {
 	}
 
 	store := storage.NewStorage()
+	storeWrapper := storage.NewStorageWrapper(store)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			processor := handlers.NewTaskProcessor(tt.task, store)
+			processor := handlers.NewTaskProcessor(tt.task, storeWrapper)
 			result := processor.Process()
 			if result != tt.expectedValue {
 				t.Errorf("Expected %f, got %f", tt.expectedValue, result)
@@ -66,29 +67,35 @@ func TestTaskProcessor(t *testing.T) {
 
 func TestCreateTasks(t *testing.T) {
 	store := storage.NewStorage()
+	storeWrapper := storage.NewStorageWrapper(store)
 
 	t.Run("Simple expression", func(t *testing.T) {
 		expr := &models.Expression{
 			Original: "2+2",
 		}
-		processor := handlers.NewTaskProcessor(nil, store)
+		processor := handlers.NewTaskProcessor(nil, storeWrapper)
 		tasks, err := processor.CreateTasks(expr)
 
 		if err != nil {
 			t.Fatalf("CreateTasks() error = %v", err)
 		}
 
-		if len(tasks) != 1 {
-			t.Fatalf("CreateTasks() returned %d tasks, want 1", len(tasks))
+		if len(tasks) != 3 {
+			t.Fatalf("CreateTasks() returned %d tasks, want 3", len(tasks))
 		}
 
-		task := tasks[0]
-		if task.Operation != "+" {
-			t.Errorf("Expected operation +, got %s", task.Operation)
+		foundAdd := false
+		for _, task := range tasks {
+			if task.Operation == "+" {
+				foundAdd = true
+				if task.Arg1 != 2 || task.Arg2 != 2 {
+					t.Errorf("Expected operation + with args [2 2], got [%v %v]", task.Arg1, task.Arg2)
+				}
+			}
 		}
 
-		if task.Arg1 != 2 || task.Arg2 != 2 {
-			t.Errorf("Expected args [2 2], got %v, %v", task.Arg1, task.Arg2)
+		if !foundAdd {
+			t.Errorf("Expected to find a task with + operation")
 		}
 	})
 
@@ -96,23 +103,34 @@ func TestCreateTasks(t *testing.T) {
 		expr := &models.Expression{
 			Original: "2+3*4",
 		}
-		processor := handlers.NewTaskProcessor(nil, store)
+		processor := handlers.NewTaskProcessor(nil, storeWrapper)
 		tasks, err := processor.CreateTasks(expr)
 
 		if err != nil {
 			t.Fatalf("CreateTasks() error = %v", err)
 		}
 
-		if len(tasks) != 2 {
-			t.Fatalf("CreateTasks() returned %d tasks, want 2", len(tasks))
+		if len(tasks) != 5 {
+			t.Fatalf("CreateTasks() returned %d tasks, want 5", len(tasks))
 		}
 
-		if tasks[0].Operation != "*" {
-			t.Errorf("Expected operation *, got %s", tasks[0].Operation)
+		foundMultiply := false
+		foundAdd := false
+
+		for _, task := range tasks {
+			if task.Operation == "*" {
+				foundMultiply = true
+			}
+			if task.Operation == "+" {
+				foundAdd = true
+			}
 		}
 
-		if tasks[0].Arg1 != 3 || tasks[0].Arg2 != 4 {
-			t.Errorf("Expected args [3 4], got %v, %v", tasks[0].Arg1, tasks[0].Arg2)
+		if !foundMultiply {
+			t.Errorf("Expected to find a task with * operation")
+		}
+		if !foundAdd {
+			t.Errorf("Expected to find a task with + operation")
 		}
 	})
 
@@ -120,7 +138,7 @@ func TestCreateTasks(t *testing.T) {
 		expr := &models.Expression{
 			Original: "2++2",
 		}
-		processor := handlers.NewTaskProcessor(nil, store)
+		processor := handlers.NewTaskProcessor(nil, storeWrapper)
 		_, err := processor.CreateTasks(expr)
 
 		if err == nil {

@@ -31,7 +31,7 @@ func TestIsValidExpression(t *testing.T) {
 		{"2 + 2)", false},
 		{"(2 + 2))", false},
 		{"((2 + 2)", false},
-		{"2 + 2 * 3 / 0", true},
+		{"2 + 2 * 3 / 0", false},
 		{"", false},
 		{"abc", false},
 		{"2 + 2 * abc", false},
