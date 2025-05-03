@@ -127,3 +127,22 @@ func (c *TaskClient) SubmitTaskResult(ctx context.Context, taskID string, result
 
 	return err
 }
+
+func (c *TaskClient) SubmitTaskError(ctx context.Context, taskID string, errorMsg string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	task := &pb.Task{
+		Id:     taskID,
+		Error:  errorMsg,
+		Status: "ERROR",
+	}
+
+	_, err := c.client.SubmitTaskResult(ctx, &pb.SubmitTaskResultRequest{
+		Request: &pb.SubmitTaskResultRequest_Task{
+			Task: task,
+		},
+	})
+
+	return err
+}

@@ -47,6 +47,15 @@ func StartWorker(grpcAddr string, workerId int) {
 			if task.Arg2 == 0 {
 				opErr = fmt.Errorf("division by zero")
 				log.Printf("Worker #%d: ошибка деления на ноль в задаче %s", workerId, task.ID)
+
+				if submitErr := client.SubmitTaskError(context.Background(), task.ID, "division by zero"); submitErr != nil {
+					log.Printf("Worker #%d не удалось отправить информацию об ошибке для задачи %s: %v",
+						workerId, task.ID, submitErr)
+				} else {
+					log.Printf("Worker #%d отправил ошибку для задачи %s: %v", workerId, task.ID, opErr)
+				}
+
+				continue
 			} else {
 				result = task.Arg1 / task.Arg2
 			}
