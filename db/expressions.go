@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"djanGO/models"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -66,7 +67,7 @@ func AddExpression(expression string, userLogin string) (int64, error) {
 	fmt.Printf("Сгенерирован ID выражения: %s\n", expressionID)
 
 	_, err = tx.Exec(
-		"INSERT INTO expressions (id, user_id, original, status, created) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)",
+		"INSERT INTO expressions (id, user_id, original, status) VALUES (?, ?, ?, ?)",
 		expressionID, userID, expression, "PENDING",
 	)
 	if err != nil {
@@ -81,9 +82,9 @@ func AddExpression(expression string, userLogin string) (int64, error) {
 	}
 
 	var lastID int64
-	err = DB.QueryRow("SELECT MAX(ROWID) FROM expressions").Scan(&lastID)
+	err = DB.QueryRow("SELECT rowid FROM expressions WHERE id = ?", expressionID).Scan(&lastID)
 	if err != nil {
-		return 0, fmt.Errorf("ошибка получения ID выражения: %w", err)
+		return 0, fmt.Errorf("ошибка получения ROWID выражения: %w", err)
 	}
 
 	fmt.Printf("Возвращаем ROWID=%d для выражения с id=%s\n", lastID, expressionID)
@@ -149,7 +150,7 @@ func AddTask(task *Task) (int64, error) {
 func GetTasksForExpression(expressionID string) ([]*Task, error) {
 	rows, err := DB.Query(
 		`SELECT id, expression_id, task_order, operation, arg1, arg2, result, status, error, 
-		depends_on, operation_time
+		depends_on, operation_time, arg1_source, arg2_source
 		FROM tasks WHERE expression_id = ?
 		ORDER BY task_order ASC`, expressionID,
 	)
@@ -162,10 +163,11 @@ func GetTasksForExpression(expressionID string) ([]*Task, error) {
 	for rows.Next() {
 		var task Task
 		var taskIDStr, exprIDStr string
-		var dependenciesStr sql.NullString
+		var dependenciesStr, arg1Source, arg2Source sql.NullString
 		err := rows.Scan(
 			&taskIDStr, &exprIDStr, &task.Order, &task.Operation, &task.Arg1, &task.Arg2,
 			&task.Result, &task.Status, &task.Error, &dependenciesStr, &task.OperationTime,
+			&arg1Source, &arg2Source,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("ошибка сканирования задачи: %w", err)
@@ -209,7 +211,7 @@ func GetExpressionsByUser(userLogin string) ([]*Expression, error) {
 
 	fmt.Printf("Найден пользователь '%s' с ID=%d\n", userLogin, userID)
 
-	query := `SELECT id, original as text, status, result, error, ? as user_login, created as created_at, created as updated_at 
+	query := `SELECT id, original, status, result, error, ? as user_login, created, created 
 		FROM expressions WHERE user_id = ?
 		ORDER BY created DESC`
 	fmt.Printf("SQL запрос: %s\nПараметры: userLogin=%s, userID=%d\n", query, userLogin, userID)
@@ -266,14 +268,13 @@ func GetExpressionsByUser(userLogin string) ([]*Expression, error) {
 func CreateExpressionTables() error {
 	_, err := DB.Exec(`
 		CREATE TABLE IF NOT EXISTS expressions (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			text TEXT NOT NULL,
+			id TEXT PRIMARY KEY,
+			user_id INTEGER,
+			original TEXT NOT NULL,
 			status TEXT NOT NULL,
 			result REAL DEFAULT 0,
 			error TEXT DEFAULT '',
-			user_login TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
@@ -282,8 +283,9 @@ func CreateExpressionTables() error {
 
 	_, err = DB.Exec(`
 		CREATE TABLE IF NOT EXISTS tasks (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			expression_id INTEGER NOT NULL,
+			id TEXT PRIMARY KEY,
+			expression_id TEXT NOT NULL,
+			user_id INTEGER NOT NULL,
 			operation TEXT NOT NULL,
 			arg1 REAL NOT NULL,
 			arg2 REAL NOT NULL,
@@ -293,6 +295,8 @@ func CreateExpressionTables() error {
 			task_order INTEGER NOT NULL,
 			depends_on TEXT DEFAULT '',
 			operation_time INTEGER DEFAULT 100,
+			arg1_source TEXT DEFAULT '',
+			arg2_source TEXT DEFAULT '',
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			FOREIGN KEY (expression_id) REFERENCES expressions (id) ON DELETE CASCADE
@@ -303,4 +307,30 @@ func CreateExpressionTables() error {
 	}
 
 	return nil
+}
+
+func GetTasksByExpressionID(expressionID string) ([]*models.Task, error) {
+	dbTasks, err := GetTasksForExpression(expressionID)
+	if err != nil {
+		return nil, err
+	}
+
+	var tasks []*models.Task
+	for _, dbTask := range dbTasks {
+		task := &models.Task{
+			ID:            dbTask.ID,
+			ExpressionID:  dbTask.ExpressionID,
+			Operation:     dbTask.Operation,
+			Arg1:          dbTask.Arg1,
+			Arg2:          dbTask.Arg2,
+			Result:        dbTask.Result,
+			Status:        dbTask.Status,
+			Error:         dbTask.Error,
+			Order:         dbTask.Order,
+			OperationTime: dbTask.OperationTime,
+		}
+		tasks = append(tasks, task)
+	}
+
+	return tasks, nil
 }
