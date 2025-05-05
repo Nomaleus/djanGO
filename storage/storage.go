@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"log"
 	"sync"
 )
 
@@ -89,7 +88,7 @@ func (s *Storage) GetAndLockPendingTask(workerID string) (*Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for id, task := range s.tasks {
+	for _, task := range s.tasks {
 		if task.Status == TaskStatusPending {
 			allDepsCompleted := true
 			for _, depID := range task.DependsOn {
@@ -102,7 +101,6 @@ func (s *Storage) GetAndLockPendingTask(workerID string) (*Task, error) {
 
 			if allDepsCompleted {
 				task.Status = TaskStatusInProgress
-				log.Printf("Worker %s: Получена задача ID=%s для выполнения", workerID, id)
 				return task, nil
 			}
 		}

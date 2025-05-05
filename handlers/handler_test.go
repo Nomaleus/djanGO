@@ -207,17 +207,7 @@ func TestCalculateHandler(t *testing.T) {
 
 	mockCalculateHandler := func(w http.ResponseWriter, r *http.Request) {
 		userLogin := utils.GetUserFromContext(r.Context())
-		fmt.Printf("DEBUG Calculate: Пользователь из функции GetUserFromContext: '%s'\n", userLogin)
-
-		fmt.Println("DEBUG Calculate: Заголовки запроса:")
-		for name, values := range r.Header {
-			for _, value := range values {
-				fmt.Printf("  %s: %s\n", name, value)
-			}
-		}
-
 		if userLogin == "" {
-			fmt.Println("DEBUG Calculate: Пользователь не найден в контексте!")
 			utils.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 				"error": "Требуется авторизация",
 			})

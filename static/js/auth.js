@@ -1,10 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("Инициализация скрипта авторизации...");
-
     const registerForm = document.getElementById('register-form');
     if (registerForm) {
-        console.log("Форма регистрации найдена, добавляем обработчик");
-        
         registerForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -57,8 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
-        console.log("Форма входа найдена, добавляем обработчик");
-
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.get('registered') === 'true') {
             showSuccess("Регистрация успешна! Теперь вы можете войти.");
@@ -88,7 +82,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (data.token) {
                     localStorage.setItem('jwt_token', data.token);
-                    console.log("JWT токен сохранен в localStorage");
 
                     document.cookie = `user_login=${login}; path=/`;
                 }

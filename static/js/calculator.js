@@ -563,16 +563,12 @@ class Calculator3D {
 let calculator3D;
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("Инициализация калькулятора...");
-
     const userLogin = window.getCookieValue('user_login');
     if (!userLogin) {
         console.log("Пользователь не авторизован, перенаправление на страницу входа");
         window.location.href = '/login';
         return;
     }
-    
-    console.log("✅ Пользователь авторизован как:", userLogin);
     window.currentUser = userLogin;
     
     calculator3D = new Calculator3D();
@@ -590,7 +586,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     if (typeof loadExpressionHistory === 'function') {
-        console.log("Запуск загрузки истории вычислений...");
         loadExpressionHistory();
     }
 });
@@ -627,7 +622,6 @@ function getAuthHeaders() {
     const jwtToken = localStorage.getItem('jwt_token');
     if (jwtToken) {
         headers['Authorization'] = `Bearer ${jwtToken}`;
-        console.log("Добавлен заголовок Authorization с JWT токеном");
     }
 
     const userLogin = window.getCookieValue('user_login');
@@ -649,7 +643,6 @@ async function calculateExpression() {
 
     const userLogin = window.getCookieValue('user_login');
     if (!userLogin) {
-        console.log("Пользователь не авторизован");
         showError("Пожалуйста, войдите в систему для выполнения вычислений");
         setTimeout(() => {
             window.location.href = '/login';
@@ -659,9 +652,7 @@ async function calculateExpression() {
 
     showLoading();
     try {
-        console.log("Отправка запроса с выражением:", expression);
         const headers = getAuthHeaders();
-        console.log("Заголовки для запроса:", headers);
 
         const response = await fetch('/api/v1/calculate', {
             method: 'POST',
@@ -670,15 +661,11 @@ async function calculateExpression() {
             credentials: 'include'
         });
 
-        console.log("Статус ответа от сервера:", response.status);
-
         const responseText = await response.text();
-        console.log("Ответ сервера (текст):", responseText);
 
         let data;
         try {
             data = JSON.parse(responseText);
-            console.log("Распарсенный ответ:", data);
         } catch (e) {
             console.error("Не удалось распарсить ответ как JSON:", e);
             throw new Error("Ошибка в формате ответа от сервера");
@@ -713,7 +700,6 @@ async function calculateExpression() {
         }
 
         if (data.id) {
-            console.log("Получен ID выражения:", data.id);
             pollForResult(data.id);
         } else {
             throw new Error('Некорректный формат ответа: отсутствует ID');
@@ -903,8 +889,6 @@ function hideLoading() {
 }
 
 async function pollForResult(id) {
-    console.log("Polling for result for expression ID:", id);
-    
     try {
         const timestamp = new Date().getTime();
         const response = await fetch(`/api/v1/expressions/${id}?_t=${timestamp}`, {
@@ -915,8 +899,7 @@ async function pollForResult(id) {
             },
             credentials: 'include'
         });
-        
-        console.log("Статус ответа при запросе выражения:", response.status);
+
         
         if (!response.ok) {
             const errorText = await response.text();
@@ -927,22 +910,17 @@ async function pollForResult(id) {
         }
         
         const data = await response.json();
-        console.log("Получены данные выражения:", data);
         
         let expressionData;
         if (data.expression) {
             expressionData = data.expression;
-            console.log("Данные выражения извлечены из поля 'expression':", expressionData);
         } else {
             expressionData = data;
-            console.log("Данные выражения непосредственно в ответе:", expressionData);
         }
         
         if (expressionData.status === "PENDING" || expressionData.status === "PROCESSING") {
-            console.log("Expression is still processing, will poll again in 500ms");
             setTimeout(() => pollForResult(id), 500);
         } else if (expressionData.status === "COMPLETED") {
-            console.log("Expression is completed with result:", expressionData.result);
             hideLoading();
             
             let expressionText = '';
@@ -957,18 +935,13 @@ async function pollForResult(id) {
                 }
             }
             
-            console.log("Текст выражения для отображения:", expressionText);
-            
             showResult(expressionData.result, expressionText);
-            
-            console.log("Updating history after calculation completed");
+
             if (typeof loadExpressionHistory === 'function') {
                 loadExpressionHistory();
             }
         } else if (expressionData.status === "ERROR") {
             hideLoading();
-            console.log("Expression evaluation error:", expressionData.error);
-            
             const resultElement = document.getElementById('result');
             if (resultElement) {
                 resultElement.classList.remove('hidden');
@@ -981,8 +954,6 @@ async function pollForResult(id) {
         }
     } catch (error) {
         hideLoading();
-        console.error('Error polling for result:', error);
-        
         const errorElement = document.getElementById('error');
         if (errorElement) {
             errorElement.innerHTML = `Ошибка: ${error.message}`;
@@ -993,7 +964,6 @@ async function pollForResult(id) {
 }
 
 function showResult(result, expression) {
-    console.log(`Отображение результата: ${result} для выражения: ${expression}`);
     hideLoading();
     
     const resultElement = document.getElementById('result');

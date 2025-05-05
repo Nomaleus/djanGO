@@ -38,8 +38,6 @@ type Task struct {
 }
 
 func AddExpression(expression string, userLogin string) (int64, error) {
-	fmt.Printf("Добавление выражения '%s' для пользователя: %s\n", expression, userLogin)
-
 	tx, err := DB.Begin()
 	if err != nil {
 		return 0, fmt.Errorf("ошибка начала транзакции: %w", err)
@@ -61,10 +59,7 @@ func AddExpression(expression string, userLogin string) (int64, error) {
 		}
 	}
 
-	fmt.Printf("Найден пользователь '%s' с ID=%d\n", userLogin, userID)
-
 	expressionID := generateUUID()
-	fmt.Printf("Сгенерирован ID выражения: %s\n", expressionID)
 
 	_, err = tx.Exec(
 		"INSERT INTO expressions (id, user_id, original, status) VALUES (?, ?, ?, ?)",
@@ -73,9 +68,6 @@ func AddExpression(expression string, userLogin string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("ошибка добавления выражения: %w", err)
 	}
-
-	fmt.Printf("Выражение добавлено в базу данных: id=%s, user_id=%d, expression=%s\n",
-		expressionID, userID, expression)
 
 	if err = tx.Commit(); err != nil {
 		return 0, fmt.Errorf("ошибка завершения транзакции: %w", err)
@@ -86,8 +78,6 @@ func AddExpression(expression string, userLogin string) (int64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("ошибка получения ROWID выражения: %w", err)
 	}
-
-	fmt.Printf("Возвращаем ROWID=%d для выражения с id=%s\n", lastID, expressionID)
 
 	return lastID, nil
 }
@@ -196,25 +186,18 @@ func GetTasksForExpression(expressionID string) ([]*Task, error) {
 }
 
 func GetExpressionsByUser(userLogin string) ([]*Expression, error) {
-	fmt.Printf("Запрос выражений для пользователя: %s\n", userLogin)
-
 	var userID int64
 	err := DB.QueryRow("SELECT id FROM users WHERE login = ?", userLogin).Scan(&userID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			fmt.Printf("Пользователь '%s' не найден в базе данных, возвращаем пустой список\n", userLogin)
 			return []*Expression{}, nil
 		}
-		fmt.Printf("Ошибка получения ID пользователя '%s': %v\n", userLogin, err)
 		return nil, fmt.Errorf("ошибка получения ID пользователя: %w", err)
 	}
-
-	fmt.Printf("Найден пользователь '%s' с ID=%d\n", userLogin, userID)
 
 	query := `SELECT id, original, status, result, error, ? as user_login, created, created 
 		FROM expressions WHERE user_id = ?
 		ORDER BY created DESC`
-	fmt.Printf("SQL запрос: %s\nПараметры: userLogin=%s, userID=%d\n", query, userLogin, userID)
 
 	rows, err := DB.Query(query, userLogin, userID)
 	if err != nil {
@@ -252,7 +235,6 @@ func GetExpressionsByUser(userLogin string) ([]*Expression, error) {
 			expr.Error = errorNull.String
 		}
 
-		fmt.Printf("Найдено выражение: ID=%v, Текст=%s, Статус=%s\n", expr.ID, expr.Text, expr.Status)
 		expressions = append(expressions, &expr)
 	}
 
@@ -261,7 +243,6 @@ func GetExpressionsByUser(userLogin string) ([]*Expression, error) {
 		return nil, fmt.Errorf("ошибка после сканирования выражений: %w", err)
 	}
 
-	fmt.Printf("Всего найдено выражений: %d\n", len(expressions))
 	return expressions, nil
 }
 

@@ -140,8 +140,6 @@ func (h *Handler) ProcessExpression(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Получен запрос на обработку выражения: %s", string(body))
-
 	err = json.Unmarshal(body, &request)
 	if err != nil {
 		http.Error(w, "Error parsing JSON", http.StatusBadRequest)
@@ -154,7 +152,6 @@ func (h *Handler) ProcessExpression(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !utils.IsValidExpression(request.Expression) {
-		log.Printf("Недопустимое выражение: %s", request.Expression)
 		http.Error(w, "Invalid expression", http.StatusBadRequest)
 		return
 	}
@@ -167,8 +164,6 @@ func (h *Handler) ProcessExpression(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.Storage.AddExpression(expr)
-
-	log.Printf("Создано новое выражение с ID: %s, выражение: %s", expr.ID, expr.Original)
 
 	dummyTask := &models.Task{}
 	processor := NewTaskProcessor(dummyTask, h.Storage)
@@ -192,11 +187,7 @@ func (h *Handler) ProcessExpression(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Создано %d задач для выражения %s", len(tasks), expr.ID)
-
 	if expr.Status == "COMPLETED" {
-		log.Printf("Выражение %s уже завершено, результат: %f", expr.ID, expr.Result)
-
 		expResponse = models.ExpressionResponse{
 			ID:      expr.ID,
 			Status:  "COMPLETED",

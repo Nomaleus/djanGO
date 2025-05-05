@@ -36,10 +36,8 @@ func MockCalculate(w http.ResponseWriter, r *http.Request, storageWrapper *stora
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 	userLogin := utils.GetUserFromContext(r.Context())
-	fmt.Printf("DEBUG MockCalculate: Пользователь из функции GetUserFromContext: '%s'\n", userLogin)
 
 	if userLogin == "" {
-		fmt.Println("DEBUG MockCalculate: Пользователь не найден в контексте!")
 		utils.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 			"error": "Требуется авторизация",
 		})

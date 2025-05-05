@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"djanGO/storage"
-	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -66,7 +65,6 @@ func NewHandler(store *storage.StorageWrapper) *Handler {
 		}
 	}
 
-	fmt.Println("ПРЕДУПРЕЖДЕНИЕ: не удалось найти директорию static")
 	return &Handler{
 		Storage:   store,
 		StaticDir: "static",

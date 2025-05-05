@@ -23,18 +23,6 @@ func (h *Handler) Calculate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 	userLogin := utils.GetUserFromContext(r.Context())
-	fmt.Printf("DEBUG Calculate: Пользователь из функции GetUserFromContext: '%s'\n", userLogin)
-
-	fmt.Println("DEBUG Calculate: Заголовки запроса:")
-	for name, values := range r.Header {
-		for _, value := range values {
-			fmt.Printf("  %s: %s\n", name, value)
-		}
-	}
-
-	for _, cookie := range r.Cookies() {
-		fmt.Printf("DEBUG Calculate: Cookie %s: %s\n", cookie.Name, cookie.Value)
-	}
 
 	if userLogin == "" {
 		utils.WriteJSON(w, http.StatusUnauthorized, map[string]string{
@@ -42,8 +30,6 @@ func (h *Handler) Calculate(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	fmt.Printf("Расчет выражения для пользователя: %s\n", userLogin)
 
 	var req Request
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -164,8 +150,6 @@ func (h *Handler) GetExpressionByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Получение выражения по ID: %s\n", id)
-
 	expr, err := h.Storage.GetExpression(id)
 	if err != nil {
 		if err == storage.ErrNotFound {
@@ -268,8 +252,6 @@ func (h *Handler) GetUserHistory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("GetUserHistory для пользователя: %s\n", userLogin)
-
 	expressions, err := db.GetExpressionsByUser(userLogin)
 	if err != nil {
 		fmt.Printf("Ошибка при получении выражений: %v\n", err)
@@ -283,9 +265,7 @@ func (h *Handler) GetUserHistory(w http.ResponseWriter, r *http.Request) {
 		Expressions: make([]models.ExpressionResponse, 0, len(expressions)),
 	}
 
-	for i, expr := range expressions {
-		fmt.Printf("Обработка выражения [%d]: ID=%v, Status=%s\n", i, expr.ID, expr.Status)
-
+	for _, expr := range expressions {
 		var resultPtr *float64
 		if expr.Status == "COMPLETED" {
 			result := expr.Result

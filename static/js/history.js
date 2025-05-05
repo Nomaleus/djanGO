@@ -1,6 +1,5 @@
 async function loadExpressionHistory() {
     const userLogin = window.getCookieValue('user_login');
-    console.log("Загрузка истории для пользователя:", userLogin);
     
     if (!userLogin) {
         console.error("Ошибка: пользователь не авторизован");
@@ -8,8 +7,6 @@ async function loadExpressionHistory() {
     }
     
     try {
-        console.log(`Отправка запроса на /api/v1/history с заголовком X-User-Login: ${userLogin}`);
-        
         const timestamp = new Date().getTime();
         
         const response = await fetch(`/api/v1/history?_t=${timestamp}`, {
@@ -20,9 +17,7 @@ async function loadExpressionHistory() {
             },
             credentials: 'include'
         });
-        
-        console.log(`Получен ответ со статусом: ${response.status}`);
-        
+
         if (!response.ok) {
             const errorText = await response.text();
             console.error("Ошибка при загрузке истории:", response.status, errorText);
@@ -30,7 +25,6 @@ async function loadExpressionHistory() {
         }
         
         const data = await response.json();
-        console.log("Полученные данные истории:", data);
         
         const historyElement = document.getElementById('history');
         if (!historyElement) {
@@ -45,15 +39,11 @@ async function loadExpressionHistory() {
         historyElement.innerHTML = '';
         
         if (!data.expressions || data.expressions.length === 0) {
-            console.log("История выражений пуста");
             historyElement.innerHTML = '<div class="text-gray-500 text-center p-4">История пуста</div>';
             return;
         }
-        
-        console.log("Найдено выражений:", data.expressions.length);
-        
-        const sampleExpr = data.expressions[0];
-        console.log("Пример структуры данных выражения:", sampleExpr);
+
+
         
         const sortedExpressions = [...data.expressions];
         
@@ -67,8 +57,7 @@ async function loadExpressionHistory() {
                 resultValue = expr.Result;
             }
             
-            console.log(`Добавляю в историю: ${expressionText} с результатом: ${resultValue}, статус: ${expr.status}`);
-            
+
             if (expr.status === "COMPLETED" && resultValue !== null) {
                 addToHistory(expressionText, resultValue);
             } 
@@ -84,8 +73,7 @@ async function loadExpressionHistory() {
 function addToHistory(expression, result) {
     const historyElement = document.getElementById('history');
     if (!historyElement) return;
-    
-    console.log(`Добавление в историю: ${expression} = ${result}`);
+
     
     const historyItem = document.createElement('div');
     historyItem.className = 'history-item opacity-0 w-full mx-auto text-center';
@@ -120,7 +108,6 @@ function useExpression(expression) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("Загрузка истории выражений при загрузке страницы");
     
     const historyElement = document.getElementById('history');
     if (historyElement) {

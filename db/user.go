@@ -31,8 +31,6 @@ func CreateUser(login, password string) error {
 	}
 
 	hashedPassword := hashPassword(password)
-	fmt.Printf("Создание пользователя %s с SHA-256 хешем: %s\n", login, hashedPassword[:10]+"...")
-
 	_, err = DB.Exec("INSERT INTO users (login, password_hash) VALUES (?, ?)",
 		login, hashedPassword, time.Now())
 	if err != nil {

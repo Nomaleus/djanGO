@@ -46,7 +46,6 @@ func init() {
 		envPath := filepath.Join(projectRoot, ".env")
 		if err := godotenv.Load(envPath); err == nil {
 			envLoaded = true
-			fmt.Printf("Загружен .env из директории проекта: %s\n", envPath)
 		} else {
 			fmt.Printf("Не удалось загрузить .env из %s: %v\n", envPath, err)
 		}
@@ -144,14 +143,9 @@ func worker(storageWrapper *storage.StorageWrapper) {
 				continue
 			}
 
-			fmt.Printf("Задача ID=%s выполнена успешно, результат=%f\n", task.ID, result)
-			fmt.Printf("Результат задачи ID=%s сохранен\n", task.ID)
-
 			expr, err := storageWrapper.GetExpressionByTaskID(task.ID)
 			if err == nil && expr != nil {
-				fmt.Printf("Статус выражения ID=%s: %s", expr.ID, expr.Status)
 				if expr.Status == "COMPLETED" {
-					fmt.Printf(", Result=%f\n", expr.Result)
 
 					_, err = db.DB.Exec(
 						"UPDATE expressions SET status = 'COMPLETED', result = ? WHERE id = ?",
@@ -169,11 +163,6 @@ func worker(storageWrapper *storage.StorageWrapper) {
 			_, err = db.DB.Exec(
 				"UPDATE tasks SET status = 'COMPLETED', result = ? WHERE id = ?",
 				result, task.ID)
-			if err != nil {
-				fmt.Printf("Ошибка обновления результата задачи в БД: %v\n", err)
-			} else {
-				fmt.Printf("Результат задачи ID=%s успешно обновлен в БД\n", task.ID)
-			}
 		}
 	}
 }

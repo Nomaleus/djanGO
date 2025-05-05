@@ -32,7 +32,6 @@ func main() {
 		envPath := filepath.Join(projectRoot, ".env")
 		if err := godotenv.Load(envPath); err == nil {
 			envLoaded = true
-			fmt.Printf("Загружен .env из директории проекта: %s\n", envPath)
 		} else {
 			fmt.Printf("Не удалось загрузить .env из %s: %v\n", envPath, err)
 		}
