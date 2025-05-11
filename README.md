@@ -102,7 +102,9 @@ go run main.go
 ### В проекте реализован веб-интерфейс для демонстрации возможностей API, поэтому использование нижеописанными способами необязательно.
 Чтобы перейти в веб-интерфейс, необходимо всего лишь перейти по адресу, на котором стартовал сервер, по умолчанию это - localhost:80 :)
 
-~~Не~~стандартный дисклеймер Павла: Веб-интерфейс может быть требователен к железу и предоставлен лишь для демонстрации возможностей API, но никак **не может** являться решением для **PROD**. 
+~~Не~~стандартный дисклеймер Павла: Веб-интерфейс может быть требователен к железу и предоставлен лишь для демонстрации возможностей API, но никак **не может** являться решением для **PROD**.
+
+~~Не не~~стандартный дисклеймер: YOUR_ACCESS_TOKEN заменяйте на полученный любым способом токен авторизации. И да, это не гпт писал...) 
 
 ---
 
@@ -119,6 +121,16 @@ go run main.go
 }
 ```
 
+#### CURL:
+```bash
+curl --location 'localhost/api/v1/calculate' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+--data '{
+  "expression": "2+2*2"
+}'
+```
+
 #### Пример успешного ответа:
 ```json
 {
@@ -129,7 +141,12 @@ go run main.go
 ### **GET /api/v1/expressions**
 
 Отправьте GET-запрос для получения списка выражений.
-
+#### CURL:
+```bash
+curl --location 'localhost/api/v1/expressions' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
+```
 #### Пример успешного ответа:
 ```json
 {
@@ -151,7 +168,13 @@ go run main.go
 ###  GET **localhost/api/v1/expressions/id**
 
 Отправьте GET запрос, чтобы узнать информацию о конкретном выражении по его уникальному идентификатору(id).
+#### CURL:
+```bash
+curl --location 'localhost/api/v1/expressions/id' \
+--header 'Content-Type: application/json' \
+--header 'Authorization: Bearer YOUR_ACCESS_TOKEN' \
 
+```
 Данная команда выведет подробную информацию о том как считалось отправленное вами выражение(это действительно интересно, пусть и ужасно). 
 ```json
 {
@@ -165,6 +188,7 @@ go run main.go
 
 ###  POST **localhost/internal/task**
 Сервер не позволяет пользователю извне вмешиваться в задачи, но существует подобный путь для POST-запросов.
+
 #### Пример запроса:
 ```json
 {
@@ -190,7 +214,14 @@ go run main.go
 ```bash
 {"login":"admin","password":"admin123"}
 ```
-
+#### CURL:
+```bash
+curl --location 'localhost/api/v1/register' \
+--header 'Content-Type: application/json' \
+--data '{
+  "login":"testuser","password":"testuser"
+}'
+```
 Пример ответа:
 ```bash
 {
@@ -204,7 +235,14 @@ go run main.go
 ```bash
 {"login":"admin","password":"admin123"}
 ```
-
+#### CURL:
+```bash
+curl --location 'localhost/api/v1/login' \
+--header 'Content-Type: application/json' \
+--data '{
+  "login":"testuser","password":"testuser"
+}'
+```
 Пример ответа:
 ```bash
 {
